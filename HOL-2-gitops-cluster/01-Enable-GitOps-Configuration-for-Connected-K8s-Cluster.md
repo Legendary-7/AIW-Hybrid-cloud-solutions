@@ -224,21 +224,43 @@ Now let us verify if the Kubernetes cluster is connected to Azure Arc and is in 
 
 In this task, you will configure a Kubernetes cluster using GitOps methodology through Azure CLI. This GitOps setup will create namespaces, deploy workloads, and provide team-specific configurations based on the manifests in the forked repository.
 
-1. Copy the below command to any text editor
+1. Run the below commands one after the other to update the kubernate version.    
 
    ```
-   az k8sconfiguration create --name cluster-config --cluster-name microk8s-cluster --resource-group $ResourceGroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/<githubusername>/arc-k8s-demo --scope cluster --cluster-type connectedClusters
+   sudo snap refresh microk8s --channel=1.27/stable
    ```
 
-1. Then, replace as mentioned below and run the command in ubuntu-k8s VM SSH session that is opened in putty:
+   ```
+   microk8s status --wait-ready
+   ```
 
-   - You have to replace **<githubusername>** in the previous command with the username of the GitHub account to which you had forked the repository. 
-   
-   If you get a prompt asking **Do you want to install the extension k8sconfiguration**, type **Y** and press **Enter**.
+    ![](.././media/arc72.png "azlogin")   
 
-   ![](.././media/04.png) 
+     > **Note:** Wait until the first command runs successfully. This may take around **10–15 minutes**. Then, run the second command, which can take approximately **15–20 minutes** to complete.
+
+     > **Note:** If `microk8s status --wait-ready` takes more than **20–30 minutes** to execute, press **Ctrl+Z** to terminate it and proceed further.
+
+1. Run the below command to install `microsoft.flux` extension.
+
+   ```
+   az k8s-extension create --extension-type microsoft.flux --configuration-settings multiTenancy.enforce=false -c microk8s-cluster -g $ResourceGroup -n flux -t connectedClusters
+   ```
+
+    >**Note**: Enter `Y` to `The command requires extension k8s-extension, Do you want to install`.    
+
+1. Copy the below command to any text editor. You have to replace **\<githubusername>** in the below command with the `username of the GitHub account` to which you had forked the repository.
+
+   ```
+   az k8s-configuration flux create   -g $ResourceGroup   -c microk8s-cluster   -n cluster-config   -t connectedClusters   --scope cluster   --namespace cluster-config   -u https://github.com/<githubusername>/arc-k8s-demo  --branch master --kustomization name=cluster-config-kustomization
+   ```
+
+    >**Note**: Enter `Y` to `The command requires extension k8s-configuration, Do you want to install`.   
+
+1. Replace as mentioned below and run the command in ubuntu-k8s VM SSH session that is opened in putty:
    
-     > **Note**: Wait for 5 mins before performing the next step
+    ![](.././media/cs.png) 
+   
+     > **Note**: Wait for 5 minutes before performing the next step
 
      > ``Info`` - Once you execute the above command, the manifests in your forked repository provision a few namespaces, deploy workloads and provide some team-specific configuration. Using this repository with GitOps creates the following resources on your Kubernetes cluster:
 
@@ -249,7 +271,6 @@ In this task, you will configure a Kubernetes cluster using GitOps methodology t
      > *ConfigMap*: team-a/endpoints
      
      > The config agent polls Azure for new or updated configurations.
-
 ## Task 6: Validate the SourceControlConfiguration
 
 In this task, you will validate the SourceControlConfiguration to ensure successful creation and compliance status. You'll run an Azure CLI command to check if the compliance state is "Installed", and if not, retry periodically until it reflects the desired state. Additionally, you'll navigate to the Azure Portal to confirm the GitOps operator's state status under the specified Resource Group and Resource, ensuring the successful setup of the GitOps configuration.
